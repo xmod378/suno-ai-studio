@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suno AI Studio - Netlify Client</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: { darkbg: '#090d16', darkcard: '#111827', accent: { 500: '#8b5cf6', 600: '#7c3aed' } }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #090d16; }
+        ::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 999px; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .animate-vinyl { animation: spin 3s linear infinite; }
+    </style>
+</head>
+<body class="bg-darkbg text-slate-100 min-h-screen font-sans antialiased">
+
+    <div class="max-w-md mx-auto px-4 py-5 flex flex-col justify-between min-h-screen">
+        
+        <header class="flex justify-between items-center border-b border-slate-800 pb-4">
+            <div class="flex items-center space-x-2">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-accent-600 to-pink-500 flex items-center justify-center shadow-lg">
+                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
+                </div>
+                <div>
+                    <h1 class="text-base font-bold text-white tracking-wide">AI Song Studio</h1>
+                    <div class="text-[10px] text-slate-400 font-medium">
+                        Sisa Kredit: <span id="credit-display" class="text-emerald-400 font-bold">-</span>
+                    </div>
+                </div>
+            </div>
+            <button onclick="toggleModal('settings-modal')" class="p-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-800 transition active:scale-95 flex items-center space-x-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/></svg>
+                <span>Pengaturan API</span>
+            </button>
+        </header>
+
+        <main class="flex-grow my-5 space-y-4">
+            <div>
+                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Judul Lagu</label>
+                <input id="title-input" type="text" class="w-full p-3 bg-darkcard border border-slate-800 rounded-xl focus:border-accent-500 focus:outline-none text-sm text-slate-250" placeholder="Masukkan judul kreasi lagumu...">
+            </div>
+            <div>
+                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Lirik / Perintah</label>
+                <textarea id="lyrics-input" rows="4" class="w-full p-3 bg-darkcard border border-slate-800 rounded-xl focus:border-accent-500 focus:outline-none text-sm text-slate-200 resize-none" placeholder="Tulis lirik atau deskripsikan musik yang kamu inginkan..."></textarea>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Genre</label>
+                    <input id="style-input" type="text" class="w-full p-3 bg-darkcard border border-slate-800 rounded-xl focus:border-accent-500 focus:outline-none text-sm" placeholder="e.g. Pop, Dangdut, Rock">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Provider AI</label>
+                    <select id="provider-select" class="w-full p-3 bg-darkcard border border-slate-800 rounded-xl text-sm text-slate-300">
+                        <option value="kieai">Kie AI</option>
+                        <option value="apiframe">ApiFrame</option>
+                        <option value="sunoapi">SunoApi.org</option>
+                        <option value="apipass">Apipass.dev</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="loading-container" class="hidden bg-darkcard border border-slate-800 rounded-xl p-4 flex-col items-center justify-center space-y-3">
+                <div class="relative w-16 h-16 flex items-center justify-center bg-slate-950 rounded-full border border-slate-800 shadow-inner">
+                    <div class="w-12 h-12 bg-gradient-to-r from-slate-900 to-slate-800 rounded-full flex items-center justify-center border-4 border-slate-950 animate-vinyl">
+                        <div class="w-3 h-3 bg-accent-500 rounded-full border-2 border-slate-950"></div>
+                    </div>
+                </div>
+                <div class="w-full text-center space-y-1">
+                    <p id="loading-text" class="text-xs text-slate-300 font-medium">Sedang memproses...</p>
+                    <div class="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden border border-slate-900">
+                        <div id="loading-bar" class="bg-gradient-to-r from-accent-500 to-pink-500 h-full w-0 transition-all duration-300"></div>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="generateSong()" id="btn-generate" class="w-full py-3.5 bg-gradient-to-r from-accent-600 to-indigo-600 hover:from-accent-500 hover:to-indigo-500 text-white text-sm font-bold rounded-xl shadow-lg transition active:scale-[0.99] flex items-center justify-center space-x-2">
+                <span>Rakit Lagu Sekarang</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            </button>
+        </main>
+
+        <section class="border-t border-slate-900 pt-4">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Daftar Lagu Kamu</h2>
+                <button onclick="clearHistory()" class="text-[10px] text-red-400 hover:underline bg-red-500/5 px-2 py-1 rounded border border-red-500/10">Hapus Semua</button>
+            </div>
+            <div id="history-container" class="space-y-3 max-h-[220px] overflow-y-auto pr-1"></div>
+        </section>
+    </div>
+
+    <div id="settings-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-darkcard border border-slate-800 w-full max-w-xs rounded-2xl p-5 space-y-4">
+            <div class="flex justify-between items-center">
+                <h3 class="font-bold text-sm text-white">Integrasi API</h3>
+                <button onclick="toggleModal('settings-modal')" class="text-slate-500 text-sm">✕</button>
+            </div>
+            <div class="space-y-2 text-xs">
+                <div><label class="block text-slate-400 mb-1">Kie AI Secret Key</label><input id="key-kieai" type="password" class="w-full p-2 bg-darkbg border border-slate-800 rounded-lg text-slate-200"></div>
+                <div><label class="block text-slate-400 mb-1">ApiFrame Token</label><input id="key-apiframe" type="password" class="w-full p-2 bg-darkbg border border-slate-800 rounded-lg text-slate-200"></div>
+                <div><label class="block text-slate-400 mb-1">SunoApi.org Pass Key</label><input id="key-sunoapi" type="password" class="w-full p-2 bg-darkbg border border-slate-800 rounded-lg text-slate-200"></div>
+                <div><label class="block text-slate-400 mb-1">Apipass.dev Bearer</label><input id="key-apipass" type="password" class="w-full p-2 bg-darkbg border border-slate-800 rounded-lg text-slate-200"></div>
+            </div>
+            <button onclick="saveApiKeys()" class="w-full py-2 bg-accent-600 hover:bg-accent-500 text-white font-bold rounded-xl text-xs transition">Simpan di LocalStorage</button>
+        </div>
+    </div>
+
+    <script>
+        // DISINI PENYESUAIAN KHUSUS NETLIFY ROUTE FUNCTION
+        const PROXY_URL = "/.netlify/functions/proxy"; 
+
+        document.addEventListener('DOMContentLoaded', () => { loadApiKeys(); renderHistory(); });
+        function toggleModal(id) { const m = document.getElementById(id); m.classList.toggle('hidden'); m.classList.toggle('flex'); }
+        function saveApiKeys() {
+            const keys = {
+                kieai: document.getElementById('key-kieai').value.trim(),
+                apiframe: document.getElementById('key-apiframe').value.trim(),
+                sunoapi: document.getElementById('key-sunoapi').value.trim(),
+                apipass: document.getElementById('key-apipass').value.trim()
+            };
+            localStorage.setItem('studio_api_keys', JSON.stringify(keys));
+            toggleModal('settings-modal');
+        }
+        function loadApiKeys() {
+            const saved = localStorage.getItem('studio_api_keys');
+            if (saved) {
+                const keys = JSON.parse(saved);
+                if(keys.kieai) document.getElementById('key-kieai').value = keys.kieai;
+                if(keys.apiframe) document.getElementById('key-apiframe').value = keys.apiframe;
+                if(keys.sunoapi) document.getElementById('key-sunoapi').value = keys.sunoapi;
+                if(keys.apipass) document.getElementById('key-apipass').value = keys.apipass;
+            }
+        }
+
+        async function generateSong() {
+            const title = document.getElementById('title-input').value.trim() || "AI Masterpiece";
+            const lyrics = document.getElementById('lyrics-input').value.trim();
+            const style = document.getElementById('style-input').value.trim() || "Instrumental";
+            const provider = document.getElementById('provider-select').value;
+            
+            const keys = JSON.parse(localStorage.getItem('studio_api_keys') || '{}');
+            const currentKey = keys[provider];
+
+            if (!currentKey) { alert(`API Key untuk [${provider.toUpperCase()}] kosong!`); toggleModal('settings-modal'); return; }
+            if (!lyrics) { alert('Lirik/Prompt wajib diisi!'); return; }
+
+            const btn = document.getElementById('btn-generate');
+            const loader = document.getElementById('loading-container');
+            const loadText = document.getElementById('loading-text');
+            const loadBar = document.getElementById('loading-bar');
+
+            btn.disabled = true; btn.classList.add('opacity-50');
+            loader.classList.remove('hidden'); loader.classList.add('flex');
+            loadText.innerText = "Mengontak Server AI..."; loadBar.style.width = "15%";
+
+            let endpoint = "";
+            let customHeaders = { "x-target-url": "" };
+            let body = {};
+
+            if (provider === 'apiframe') {
+                endpoint = "https://api.apiframe.com/v1/suno/generate";
+                customHeaders["Authorization"] = `Bearer ${currentKey}`;
+                body = { prompt: lyrics, tags: style };
+            } else if (provider === 'sunoapi') {
+                endpoint = "https://api.sunoapi.org/v1/generate";
+                customHeaders["x-api-key"] = currentKey;
+                body = { lyrics: lyrics, tags: style, customMode: true };
+            } else if (provider === 'apipass') {
+                endpoint = "https://api.apipass.dev/suno/create";
+                customHeaders["Authorization"] = `Token ${currentKey}`;
+                body = { prompt: lyrics, style: style };
+            } else if (provider === 'kieai') {
+                endpoint = "https://api.kieai.com/v1/suno/generate";
+                customHeaders["Authorization"] = `Bearer ${currentKey}`;
+                body = { prompt: lyrics, tags: style };
+            }
+            
+            customHeaders["x-target-url"] = endpoint;
+
+            try {
+                const response = await fetch(PROXY_URL, {
+                    method: "POST",
+                    headers: customHeaders,
+                    body: JSON.stringify(body)
+                });
+
+                if (!response.ok) throw new Error(`Error: ${response.status}`);
+                const resData = await response.json();
+                
+                const taskId = resData.task_id || resData.id || resData.data?.id;
+                if (!taskId) throw new Error("Gagal mengurai Task ID.");
+
+                updateCreditDisplay(resData);
+
+                loadBar.style.width = "35%";
+                startPolling(taskId, provider, currentKey, title, lyrics);
+            } catch (err) {
+                alert(err.message);
+                resetUI();
+            }
+        }
+
+        function startPolling(taskId, provider, key, title, lyrics) {
+            const loadText = document.getElementById('loading-text');
+            const loadBar = document.getElementById('loading-bar');
+            let counter = 0;
+            
+            let pollUrl = "";
+            let customHeaders = { "x-target-url": "" };
+
+            if (provider === 'apiframe') {
+                pollUrl = `https://api.apiframe.com/v1/suno/status/${taskId}`;
+                customHeaders["Authorization"] = `Bearer ${key}`;
+            } else if (provider === 'sunoapi') {
+                pollUrl = `https://api.sunoapi.org/v1/status?task_id=${taskId}`;
+                customHeaders["x-api-key"] = key;
+            } else if (provider === 'apipass') {
+                pollUrl = `https://api.apipass.dev/suno/status/${taskId}`;
+                customHeaders["Authorization"] = `Token ${key}`;
+            } else if (provider === 'kieai') {
+                pollUrl = `https://api.kieai.com/v1/suno/status?id=${taskId}`;
+                customHeaders["Authorization"] = `Bearer ${key}`;
+            }
+
+            customHeaders["x-target-url"] = pollUrl;
+
+            const checkInterval = setInterval(async () => {
+                counter++;
+                let progress = 35 + (counter * 3);
+                if(progress > 95) progress = 95;
+                
+                loadBar.style.width = `${progress}%`;
+                loadText.innerText = `Sedang Meracik Musik... (${counter * 4}s)`;
+
+                if (counter > 40) { clearInterval(checkInterval); alert("Waktu tunggu habis."); resetUI(); return; }
+
+                try {
+                    const res = await fetch(PROXY_URL, { method: "GET", headers: customHeaders });
+                    if (!res.ok) return;
+
+                    const statusData = await res.json();
+                    const state = statusData.status || statusData.data?.status;
+                    const finalAudio = statusData.audio_url || statusData.data?.audio_url || statusData.output?.audio;
+
+                    updateCreditDisplay(statusData);
+
+                    if (state === 'completed' || state === 'success' || finalAudio) {
+                        clearInterval(checkInterval);
+                        loadBar.style.width = "100%";
+                        loadText.innerText = "Lagu Selesai! 🚀";
+                        
+                        saveToHistory({
+                            title: title, lyrics: lyrics, provider: provider.toUpperCase(),
+                            url: finalAudio, timestamp: new Date().toLocaleDateString('id-ID')
+                        });
+
+                        setTimeout(() => { resetUI(); }, 1000);
+                    } else if (state === 'failed') {
+                        clearInterval(checkInterval); alert("AI Gagal memproses trek."); resetUI();
+                    }
+                } catch (e) { console.error(e); }
+            }, 4000);
+        }
+
+        function updateCreditDisplay(data) {
+            const credits = data.credits ?? data.remaining_credits ?? data.credit ?? data.data?.credits ?? data.user_info?.credits;
+            if (credits !== undefined) {
+                document.getElementById('credit-display').innerText = credits;
+            }
+        }
+
+        function resetUI() {
+            document.getElementById('btn-generate').disabled = false;
+            document.getElementById('btn-generate').classList.remove('opacity-50');
+            document.getElementById('loading-container').classList.add('hidden');
+        }
+
+        function saveToHistory(item) {
+            let list = JSON.parse(localStorage.getItem('studio_songs_history') || '[]');
+            list.unshift(item); localStorage.setItem('studio_songs_history', JSON.stringify(list));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const container = document.getElementById('history-container');
+            const data = JSON.parse(localStorage.getItem('studio_songs_history') || '[]');
+            if (data.length === 0) {
+                container.innerHTML = `<div class="text-center py-6 text-xs text-slate-600 border border-dashed border-slate-900 rounded-xl">Belum ada lagu yang dibuat.</div>`;
+                return;
+            }
+            container.innerHTML = data.map((song) => `
+                <div class="p-3 bg-darkcard border border-slate-850 rounded-xl space-y-2">
+                    <div class="flex justify-between items-start">
+                        <div><h4 class="font-bold text-xs text-slate-200">${song.title}</h4><span class="text-[9px] text-slate-500">${song.timestamp}</span></div>
+                        <span class="text-[9px] px-1.5 py-0.5 font-bold rounded bg-accent-500/10 text-accent-400 border border-accent-500/20">${song.provider}</span>
+                    </div>
+                    <div class="flex items-center space-x-2 pt-1">
+                        <audio src="${song.url}" controls class="w-full h-7 accent-accent-500"></audio>
+                        <button onclick="downloadTrack('${song.url}', '${song.title}')" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition active:scale-90 shrink-0">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function downloadTrack(url, filename) {
+            try {
+                const response = await fetch(PROXY_URL, { headers: { "x-target-url": url } });
+                const blob = await response.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = blobUrl; a.download = `${filename.replace(/\s+/g, '_')}.mp3`;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                URL.revokeObjectURL(blobUrl);
+            } catch (err) {
+                window.open(url, '_blank');
+            }
+        }
+
+        function clearHistory() { if (confirm('Hapus riwayat?')) { localStorage.removeItem('studio_songs_history'); renderHistory(); } }
+    </script>
+</body>
+</html>
