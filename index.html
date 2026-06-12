@@ -167,22 +167,51 @@
             let customHeaders = { "x-target-url": "" };
             let body = {};
 
+            // 1. APIFRAME
             if (provider === 'apiframe') {
                 endpoint = "https://api.apiframe.com/v1/suno/generate";
                 customHeaders["Authorization"] = `Bearer ${currentKey}`;
-                body = { prompt: lyrics, tags: style };
-            } else if (provider === 'sunoapi') {
-                endpoint = "https://api.sunoapi.org/v1/generate";
-                customHeaders["x-api-key"] = currentKey;
-                body = { lyrics: lyrics, tags: style, customMode: true };
-            } else if (provider === 'apipass') {
+                // Parameter spesifik ApiFrame
+                body = { 
+                    prompt: lyrics, 
+                    tags: style 
+                };
+            } 
+            // 2. SUNOAPI.ORG
+            else if (provider === 'sunoapi') {
+                endpoint = "https://api.sunoapi.org/api/v1/generate";
+                customHeaders["Authorization"] = `Bearer ${currentKey}`;
+                // Parameter spesifik SunoApi
+                body = { 
+                    prompt: lyrics, 
+                    style: style,
+                    title: title,
+                    customMode: true,
+                    instrumental: false
+                };
+            } 
+            // 3. APIPASS.DEV
+            else if (provider === 'apipass') {
                 endpoint = "https://api.apipass.dev/suno/create";
                 customHeaders["Authorization"] = `Token ${currentKey}`;
-                body = { prompt: lyrics, style: style };
-            } else if (provider === 'kieai') {
-                endpoint = "https://api.kieai.com/v1/suno/generate";
+                // Parameter spesifik Apipass
+                body = { 
+                    prompt: lyrics, 
+                    style: style 
+                };
+            } 
+            // 4. KIE AI
+            else if (provider === 'kieai') {
+                endpoint = "https://api.kie.ai/api/v1/generate";
                 customHeaders["Authorization"] = `Bearer ${currentKey}`;
-                body = { prompt: lyrics, tags: style };
+                // Parameter spesifik Kie AI (Persis seperti SunoApi)
+                body = { 
+                    prompt: lyrics, 
+                    style: style,
+                    title: title,
+                    customMode: true,
+                    instrumental: false
+                };
             }
             
             customHeaders["x-target-url"] = endpoint;
