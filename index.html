@@ -251,13 +251,15 @@
                 pollUrl = `https://api.apiframe.com/v1/suno/status/${taskId}`;
                 customHeaders["Authorization"] = `Bearer ${key}`;
             } else if (provider === 'sunoapi') {
-                pollUrl = `https://api.sunoapi.org/v1/status?task_id=${taskId}`;
-                customHeaders["x-api-key"] = key;
+                // Perbaikan endpoint cek status SunoApi
+                pollUrl = `https://api.sunoapi.org/api/v1/generate/record-info?taskId=${taskId}`;
+                customHeaders["Authorization"] = `Bearer ${key}`;
             } else if (provider === 'apipass') {
                 pollUrl = `https://api.apipass.dev/suno/status/${taskId}`;
                 customHeaders["Authorization"] = `Token ${key}`;
             } else if (provider === 'kieai') {
-                pollUrl = `https://api.kieai.com/v1/suno/status?id=${taskId}`;
+                // Perbaikan endpoint cek status Kie AI
+                pollUrl = `https://api.kie.ai/api/v1/generate/record-info?taskId=${taskId}`;
                 customHeaders["Authorization"] = `Bearer ${key}`;
             }
 
