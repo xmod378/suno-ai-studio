@@ -34,14 +34,15 @@
                 </div>
                 <div>
                     <h1 class="text-base font-bold text-white tracking-wide">AI Song Studio</h1>
-                    <div class="text-[10px] text-slate-400 font-medium">
-                        Sisa Kredit: <span id="credit-display" class="text-emerald-400 font-bold">-</span>
+                    <div class="text-[10px] text-slate-400 font-medium flex items-center space-x-1">
+                        <span>Sisa Kredit:</span> 
+                        <span id="credit-display" class="text-emerald-400 font-bold">-</span>
                     </div>
                 </div>
             </div>
             <button onclick="toggleModal('settings-modal')" class="p-2 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-300 hover:bg-slate-800 transition active:scale-95 flex items-center space-x-1">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/></svg>
-                <span>Pengaturan API</span>
+                <span>API Settings</span>
             </button>
         </header>
 
@@ -111,16 +112,26 @@
                 <div><label class="block text-slate-400 mb-1">SunoApi.org Pass Key</label><input id="key-sunoapi" type="password" class="w-full p-2 bg-darkbg border border-slate-800 rounded-lg text-slate-200"></div>
                 <div><label class="block text-slate-400 mb-1">Apipass.dev Bearer</label><input id="key-apipass" type="password" class="w-full p-2 bg-darkbg border border-slate-800 rounded-lg text-slate-200"></div>
             </div>
-            <button onclick="saveApiKeys()" class="w-full py-2 bg-accent-600 hover:bg-accent-500 text-white font-bold rounded-xl text-xs transition">Simpan di LocalStorage</button>
+            <button onclick="saveApiKeys()" class="w-full py-2 bg-accent-600 hover:bg-accent-500 text-white font-bold rounded-xl text-xs transition">Simpan & Cek Saldo</button>
         </div>
     </div>
 
     <script>
-        // DISINI PENYESUAIAN KHUSUS NETLIFY ROUTE FUNCTION
+        // ROUTE PROXY NETLIFY
         const PROXY_URL = "/.netlify/functions/proxy"; 
 
-        document.addEventListener('DOMContentLoaded', () => { loadApiKeys(); renderHistory(); });
-        function toggleModal(id) { const m = document.getElementById(id); m.classList.toggle('hidden'); m.classList.toggle('flex'); }
+        document.addEventListener('DOMContentLoaded', () => { 
+            loadApiKeys(); 
+            renderHistory(); 
+            checkCurrentCredit(); 
+            document.getElementById('provider-select').addEventListener('change', checkCurrentCredit);
+        });
+
+        function toggleModal(id) { 
+            const m = document.getElementById(id); 
+            m.classList.toggle('hidden'); m.classList.toggle('flex'); 
+        }
+
         function saveApiKeys() {
             const keys = {
                 kieai: document.getElementById('key-kieai').value.trim(),
@@ -130,7 +141,9 @@
             };
             localStorage.setItem('studio_api_keys', JSON.stringify(keys));
             toggleModal('settings-modal');
+            checkCurrentCredit();
         }
+
         function loadApiKeys() {
             const saved = localStorage.getItem('studio_api_keys');
             if (saved) {
@@ -142,6 +155,67 @@
             }
         }
 
+        // ==========================================
+        // FUNGSI CEK KREDIT REAL-TIME
+        // ==========================================
+        async function checkCurrentCredit() {
+            const provider = document.getElementById('provider-select').value;
+            const keys = JSON.parse(localStorage.getItem('studio_api_keys') || '{}');
+            const currentKey = keys[provider];
+            const display = document.getElementById('credit-display');
+
+            if (!currentKey) {
+                display.innerText = "API Kosong";
+                display.className = "text-red-400 font-bold text-[10px]";
+                return;
+            }
+
+            display.innerText = "Mengecek...";
+            display.className = "text-yellow-400 font-bold animate-pulse text-[10px]";
+
+            let endpoint = "";
+            let customHeaders = { "x-target-url": "" };
+
+            if (provider === 'sunoapi') {
+                endpoint = "https://api.sunoapi.org/api/v1/limit";
+                customHeaders["Authorization"] = `Bearer ${currentKey}`;
+            } else if (provider === 'kieai') {
+                endpoint = "https://api.kie.ai/api/v1/limit";
+                customHeaders["Authorization"] = `Bearer ${currentKey}`;
+            } else if (provider === 'apiframe') {
+                endpoint = "https://api.apiframe.com/v1/user/info"; 
+                customHeaders["Authorization"] = `Bearer ${currentKey}`;
+            } else if (provider === 'apipass') {
+                endpoint = "https://api.apipass.dev/user/profile"; 
+                customHeaders["Authorization"] = `Token ${currentKey}`;
+            }
+
+            customHeaders["x-target-url"] = endpoint;
+
+            try {
+                const res = await fetch(PROXY_URL, { method: "GET", headers: customHeaders });
+                if (!res.ok) throw new Error("Gagal ambil data");
+                const resData = await res.json();
+                
+                const credits = resData.credits 
+                    ?? resData.data?.credits 
+                    ?? resData.data?.left_quota 
+                    ?? resData.balance 
+                    ?? resData.data?.balance 
+                    ?? resData.user_info?.credits 
+                    ?? "?";
+
+                display.innerText = `${credits} Kredit`;
+                display.className = "text-emerald-400 font-bold text-[10px]";
+            } catch (e) {
+                display.innerText = "Gagal Cek";
+                display.className = "text-red-400 font-bold text-[10px]";
+            }
+        }
+
+        // ==========================================
+        // FUNGSI GENERATE MUSIC (SUDAH FIX PAYLOAD)
+        // ==========================================
         async function generateSong() {
             const title = document.getElementById('title-input').value.trim() || "AI Masterpiece";
             const lyrics = document.getElementById('lyrics-input').value.trim();
@@ -167,51 +241,22 @@
             let customHeaders = { "x-target-url": "" };
             let body = {};
 
-            // 1. APIFRAME
             if (provider === 'apiframe') {
                 endpoint = "https://api.apiframe.com/v1/suno/generate";
                 customHeaders["Authorization"] = `Bearer ${currentKey}`;
-                // Parameter spesifik ApiFrame
-                body = { 
-                    prompt: lyrics, 
-                    tags: style 
-                };
-            } 
-            // 2. SUNOAPI.ORG
-            else if (provider === 'sunoapi') {
+                body = { prompt: lyrics, tags: style };
+            } else if (provider === 'sunoapi') {
                 endpoint = "https://api.sunoapi.org/api/v1/generate";
                 customHeaders["Authorization"] = `Bearer ${currentKey}`;
-                // Parameter spesifik SunoApi
-                body = { 
-                    prompt: lyrics, 
-                    style: style,
-                    title: title,
-                    customMode: true,
-                    instrumental: false
-                };
-            } 
-            // 3. APIPASS.DEV
-            else if (provider === 'apipass') {
+                body = { prompt: lyrics, style: style, title: title, customMode: true, instrumental: false };
+            } else if (provider === 'apipass') {
                 endpoint = "https://api.apipass.dev/suno/create";
                 customHeaders["Authorization"] = `Token ${currentKey}`;
-                // Parameter spesifik Apipass
-                body = { 
-                    prompt: lyrics, 
-                    style: style 
-                };
-            } 
-            // 4. KIE AI
-            else if (provider === 'kieai') {
+                body = { prompt: lyrics, style: style };
+            } else if (provider === 'kieai') {
                 endpoint = "https://api.kie.ai/api/v1/generate";
                 customHeaders["Authorization"] = `Bearer ${currentKey}`;
-                // Parameter spesifik Kie AI (Persis seperti SunoApi)
-                body = { 
-                    prompt: lyrics, 
-                    style: style,
-                    title: title,
-                    customMode: true,
-                    instrumental: false
-                };
+                body = { prompt: lyrics, style: style, title: title, customMode: true, instrumental: false };
             }
             
             customHeaders["x-target-url"] = endpoint;
@@ -226,10 +271,13 @@
                 if (!response.ok) throw new Error(`Error: ${response.status}`);
                 const resData = await response.json();
                 
-                const taskId = resData.task_id || resData.id || resData.data?.id;
-                if (!taskId) throw new Error("Gagal mengurai Task ID.");
+                // Menangkap TaskID dengan metode aman karena respon setiap API bervariasi
+                const taskId = resData.data?.taskId || resData.data?.id || resData.task_id || resData.id || resData.taskId || (resData.data && resData.data[0] && resData.data[0].id);
+                
+                if (!taskId) throw new Error("Gagal mengurai Task ID dari server. Cek console log jika perlu.");
 
-                updateCreditDisplay(resData);
+                // Update kredit segera setelah request generate terpotong
+                setTimeout(() => { checkCurrentCredit(); }, 2000);
 
                 loadBar.style.width = "35%";
                 startPolling(taskId, provider, currentKey, title, lyrics);
@@ -239,6 +287,9 @@
             }
         }
 
+        // ==========================================
+        // FUNGSI POLLING STATUS (SUDAH FIX URL)
+        // ==========================================
         function startPolling(taskId, provider, key, title, lyrics) {
             const loadText = document.getElementById('loading-text');
             const loadBar = document.getElementById('loading-bar');
@@ -251,14 +302,12 @@
                 pollUrl = `https://api.apiframe.com/v1/suno/status/${taskId}`;
                 customHeaders["Authorization"] = `Bearer ${key}`;
             } else if (provider === 'sunoapi') {
-                // Perbaikan endpoint cek status SunoApi
                 pollUrl = `https://api.sunoapi.org/api/v1/generate/record-info?taskId=${taskId}`;
                 customHeaders["Authorization"] = `Bearer ${key}`;
             } else if (provider === 'apipass') {
                 pollUrl = `https://api.apipass.dev/suno/status/${taskId}`;
                 customHeaders["Authorization"] = `Token ${key}`;
             } else if (provider === 'kieai') {
-                // Perbaikan endpoint cek status Kie AI
                 pollUrl = `https://api.kie.ai/api/v1/generate/record-info?taskId=${taskId}`;
                 customHeaders["Authorization"] = `Bearer ${key}`;
             }
@@ -273,19 +322,21 @@
                 loadBar.style.width = `${progress}%`;
                 loadText.innerText = `Sedang Meracik Musik... (${counter * 4}s)`;
 
-                if (counter > 40) { clearInterval(checkInterval); alert("Waktu tunggu habis."); resetUI(); return; }
+                if (counter > 60) { clearInterval(checkInterval); alert("Waktu tunggu habis (lebih dari 4 menit)."); resetUI(); return; }
 
                 try {
                     const res = await fetch(PROXY_URL, { method: "GET", headers: customHeaders });
                     if (!res.ok) return;
 
                     const statusData = await res.json();
-                    const state = statusData.status || statusData.data?.status;
-                    const finalAudio = statusData.audio_url || statusData.data?.audio_url || statusData.output?.audio;
+                    
+                    // Mendeteksi status API
+                    const state = statusData.status || statusData.data?.status || (statusData.data && statusData.data[0] && statusData.data[0].status);
+                    
+                    // Mendeteksi Audio URL API
+                    const finalAudio = statusData.data?.audioUrl || statusData.data?.audio_url || statusData.audio_url || statusData.output?.audio || (statusData.data && statusData.data[0] && statusData.data[0].audio_url);
 
-                    updateCreditDisplay(statusData);
-
-                    if (state === 'completed' || state === 'success' || finalAudio) {
+                    if (state === 'completed' || state === 'SUCCESS' || state === 'success' || (finalAudio && finalAudio.length > 5)) {
                         clearInterval(checkInterval);
                         loadBar.style.width = "100%";
                         loadText.innerText = "Lagu Selesai! 🚀";
@@ -295,21 +346,17 @@
                             url: finalAudio, timestamp: new Date().toLocaleDateString('id-ID')
                         });
 
-                        setTimeout(() => { resetUI(); }, 1000);
-                    } else if (state === 'failed') {
-                        clearInterval(checkInterval); alert("AI Gagal memproses trek."); resetUI();
+                        setTimeout(() => { resetUI(); }, 1500);
+                    } else if (state === 'failed' || state === 'FAILED') {
+                        clearInterval(checkInterval); alert("AI Gagal memproses trek. Terjadi kesalahan pada prompt/sistem API."); resetUI();
                     }
                 } catch (e) { console.error(e); }
             }, 4000);
         }
 
-        function updateCreditDisplay(data) {
-            const credits = data.credits ?? data.remaining_credits ?? data.credit ?? data.data?.credits ?? data.user_info?.credits;
-            if (credits !== undefined) {
-                document.getElementById('credit-display').innerText = credits;
-            }
-        }
-
+        // ==========================================
+        // UI & UTILITY FUNCTIONS
+        // ==========================================
         function resetUI() {
             document.getElementById('btn-generate').disabled = false;
             document.getElementById('btn-generate').classList.remove('opacity-50');
@@ -359,7 +406,12 @@
             }
         }
 
-        function clearHistory() { if (confirm('Hapus riwayat?')) { localStorage.removeItem('studio_songs_history'); renderHistory(); } }
+        function clearHistory() { 
+            if (confirm('Hapus riwayat?')) { 
+                localStorage.removeItem('studio_songs_history'); 
+                renderHistory(); 
+            } 
+        }
     </script>
 </body>
 </html>
