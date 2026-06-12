@@ -55,20 +55,34 @@
                 <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Lirik / Perintah</label>
                 <textarea id="lyrics-input" rows="4" class="w-full p-3 bg-darkcard border border-slate-800 rounded-xl focus:border-accent-500 focus:outline-none text-sm text-slate-200 resize-none" placeholder="Tulis lirik atau deskripsikan musik yang kamu inginkan..."></textarea>
             </div>
+            
             <div class="grid grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Genre</label>
-                    <input id="style-input" type="text" class="w-full p-3 bg-darkcard border border-slate-800 rounded-xl focus:border-accent-500 focus:outline-none text-sm text-slate-200" placeholder="e.g. Pop, Dangdut, Rock">
+                    <input id="style-input" type="text" class="w-full p-3 bg-darkcard border border-slate-800 rounded-xl focus:border-accent-500 focus:outline-none text-sm text-slate-200" placeholder="e.g. Pop, Rock">
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Provider AI</label>
-                    <select id="provider-select" class="w-full p-3 bg-darkcard border border-slate-800 rounded-xl text-sm text-slate-300 focus:outline-none">
-                        <option value="kieai">Kie AI</option>
-                        <option value="apiframe">ApiFrame</option>
-                        <option value="sunoapi">SunoApi.org</option>
-                        <option value="apipass">Apipass.dev</option>
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Model AI</label>
+                    <select id="model-select" class="w-full p-3 bg-darkcard border border-slate-800 rounded-xl text-sm text-slate-300 focus:outline-none">
+                        <option value="V5">V5</option>
+                        <option value="V5_5">V5_5</option>
+                        <option value="V4_5PLUS">V4_5PLUS</option>
+                        <option value="V4_5">V4_5</option>
+                        <option value="V4">V4</option>
+                        <option value="V4_5ALL">V4_5ALL</option>
+                        <option value="V3_5">V3_5</option>
                     </select>
                 </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Provider AI</label>
+                <select id="provider-select" class="w-full p-3 bg-darkcard border border-slate-800 rounded-xl text-sm text-slate-300 focus:outline-none">
+                    <option value="kieai">Kie AI</option>
+                    <option value="apiframe">ApiFrame</option>
+                    <option value="sunoapi">SunoApi.org</option>
+                    <option value="apipass">Apipass.dev</option>
+                </select>
             </div>
 
             <div id="loading-container" class="hidden bg-darkcard border border-slate-800 rounded-xl p-4 flex-col items-center justify-center space-y-3">
@@ -155,7 +169,7 @@
         }
 
         // ==========================================
-        // DIAGNOSTIK CEK KREDIT REAL-TIME
+        // CEK KREDIT REAL-TIME (DENGAN REVISI HEADER & BACKUP)
         // ==========================================
         async function checkCurrentCredit() {
             const provider = document.getElementById('provider-select').value;
@@ -178,10 +192,11 @@
             if (provider === 'sunoapi') {
                 endpoint = "https://api.sunoapi.org/api/v1/limit";
                 customHeaders["Authorization"] = `Bearer ${currentKey}`;
-                customHeaders["x-api-key"] = currentKey; // Backup jika server pakai lama
+                customHeaders["token"] = currentKey; 
             } else if (provider === 'kieai') {
                 endpoint = "https://api.kie.ai/api/v1/limit";
                 customHeaders["Authorization"] = `Bearer ${currentKey}`;
+                customHeaders["token"] = currentKey;
             } else if (provider === 'apiframe') {
                 endpoint = "https://api.apiframe.com/v1/user/info"; 
                 customHeaders["Authorization"] = `Bearer ${currentKey}`;
@@ -202,7 +217,6 @@
                 
                 const resData = await res.json();
                 
-                // Menjaring semua variasi nama variabel kredit dari provider luar
                 const credits = resData.credits 
                     ?? resData.data?.credits 
                     ?? resData.data?.left_quota 
@@ -212,30 +226,28 @@
                     ?? null;
 
                 if (credits === null) {
-                    // Jika terhubung tapi format JSON berubah dari providernya
                     display.innerText = "Format Berubah";
                     display.className = "text-amber-400 font-bold text-[10px]";
-                    console.log("Struktur JSON Saldo:", resData);
                 } else {
                     display.innerText = `${credits} Kredit`;
                     display.className = "text-emerald-400 font-bold text-[10px]";
                 }
             } catch (e) {
-                // Tampilkan pesan eror asli di layar HP agar user tahu penyebabnya
-                display.innerText = "Eror Koneksi";
+                display.innerText = "Eror API";
                 display.className = "text-red-400 font-bold text-[10px]";
                 console.error("Gagal Ambil Kredit:", e.message);
             }
         }
 
         // ==========================================
-        // GENERATE MUSIC (DIAGNOSTIK TRANSPARAN)
+        // GENERATE MUSIC (DENGAN INPUT MODEL & INJEKSI CALLBACK URL)
         // ==========================================
         async function generateSong() {
             const title = document.getElementById('title-input').value.trim() || "AI Masterpiece";
             const lyrics = document.getElementById('lyrics-input').value.trim();
             const style = document.getElementById('style-input').value.trim() || "Instrumental";
             const provider = document.getElementById('provider-select').value;
+            const model = document.getElementById('model-select').value; // Mengambil data dropdown model baru
             
             const keys = JSON.parse(localStorage.getItem('studio_api_keys') || '{}');
             const currentKey = keys[provider];
@@ -252,6 +264,9 @@
             loader.classList.remove('hidden'); loader.classList.add('flex');
             loadText.innerText = "Mengontak Server AI..."; loadBar.style.width = "15%";
 
+            // Membuat Dummy Callback URL otomatis agar server tidak menolak permohonan kita
+            const dummyCallback = "https://webhook.site/cb63337a-42a2-4a00-ba57-78da4b65fb73";
+
             let endpoint = "";
             let customHeaders = { "x-target-url": "" };
             let body = {};
@@ -259,20 +274,47 @@
             if (provider === 'apiframe') {
                 endpoint = "https://api.apiframe.com/v1/suno/generate";
                 customHeaders["Authorization"] = `Bearer ${currentKey}`;
-                body = { prompt: lyrics, tags: style };
+                body = { 
+                    prompt: lyrics, 
+                    tags: style,
+                    model: model,
+                    callback_url: dummyCallback
+                };
             } else if (provider === 'sunoapi') {
                 endpoint = "https://api.sunoapi.org/api/v1/generate";
                 customHeaders["Authorization"] = `Bearer ${currentKey}`;
-                customHeaders["x-api-key"] = currentKey; 
-                body = { prompt: lyrics, style: style, title: title, customMode: true, instrumental: false };
+                body = { 
+                    prompt: lyrics, 
+                    style: style, 
+                    title: title, 
+                    customMode: true, 
+                    instrumental: false,
+                    model: model,
+                    callBack: dummyCallback,
+                    callbackUrl: dummyCallback
+                };
             } else if (provider === 'apipass') {
                 endpoint = "https://api.apipass.dev/suno/create";
                 customHeaders["Authorization"] = `Token ${currentKey}`;
-                body = { prompt: lyrics, style: style };
+                body = { 
+                    prompt: lyrics, 
+                    style: style,
+                    model: model,
+                    callback: dummyCallback
+                };
             } else if (provider === 'kieai') {
                 endpoint = "https://api.kie.ai/api/v1/generate";
                 customHeaders["Authorization"] = `Bearer ${currentKey}`;
-                body = { prompt: lyrics, style: style, title: title, customMode: true, instrumental: false };
+                body = { 
+                    prompt: lyrics, 
+                    style: style, 
+                    title: title, 
+                    customMode: true, 
+                    instrumental: false,
+                    model: model,
+                    callBack: dummyCallback,
+                    callbackUrl: dummyCallback
+                };
             }
             
             customHeaders["x-target-url"] = endpoint;
@@ -291,7 +333,6 @@
 
                 const resData = await response.json();
                 
-                // Ekstraksi TaskID dari bermacam struktur JSON provider
                 const taskId = resData.data?.taskId 
                     ?? resData.data?.id 
                     ?? resData.task_id 
@@ -300,7 +341,6 @@
                     ?? (resData.data && resData.data[0] && resData.data[0].id);
                 
                 if (!taskId) {
-                    // JIKA GAGAL: Bongkar isi pesan penolakan asli dari server AI-nya
                     const serverMsg = resData.msg ?? resData.message ?? resData.error ?? JSON.stringify(resData);
                     throw new Error(`Ditolak Server AI: ${serverMsg}`);
                 }
@@ -316,7 +356,7 @@
         }
 
         // ==========================================
-        // POLLING STATUS KREASI
+        // POLLING STATUS KREASI (DENGAN PERBAIKAN URL)
         // ==========================================
         function startPolling(taskId, provider, key, title, lyrics) {
             const loadText = document.getElementById('loading-text');
@@ -332,7 +372,6 @@
             } else if (provider === 'sunoapi') {
                 pollUrl = `https://api.sunoapi.org/api/v1/generate/record-info?taskId=${taskId}`;
                 customHeaders["Authorization"] = `Bearer ${key}`;
-                customHeaders["x-api-key"] = key;
             } else if (provider === 'apipass') {
                 pollUrl = `https://api.apipass.dev/suno/status/${taskId}`;
                 customHeaders["Authorization"] = `Token ${key}`;
