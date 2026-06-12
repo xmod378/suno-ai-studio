@@ -169,7 +169,7 @@
         }
 
         // ==========================================
-        // CEK KREDIT REAL-TIME (DENGAN REVISI HEADER & BACKUP)
+        // PENYEMPURNAAN CEK KREDIT (DIAGNOSTIK TOTAL)
         // ==========================================
         async function checkCurrentCredit() {
             const provider = document.getElementById('provider-select').value;
@@ -189,17 +189,18 @@
             let endpoint = "";
             let customHeaders = { "x-target-url": "" };
 
+            // Mengirimkan variasi header agar lolos validasi firewall upstream
+            customHeaders["Authorization"] = `Bearer ${currentKey}`;
+            customHeaders["x-api-key"] = currentKey;
+            customHeaders["token"] = currentKey;
+
             if (provider === 'sunoapi') {
                 endpoint = "https://api.sunoapi.org/api/v1/limit";
-                customHeaders["Authorization"] = `Bearer ${currentKey}`;
-                customHeaders["token"] = currentKey; 
             } else if (provider === 'kieai') {
+                // Kie AI memperbarui endpoint balance mereka ke jalur v1/user/info atau v1/limit
                 endpoint = "https://api.kie.ai/api/v1/limit";
-                customHeaders["Authorization"] = `Bearer ${currentKey}`;
-                customHeaders["token"] = currentKey;
             } else if (provider === 'apiframe') {
                 endpoint = "https://api.apiframe.com/v1/user/info"; 
-                customHeaders["Authorization"] = `Bearer ${currentKey}`;
             } else if (provider === 'apipass') {
                 endpoint = "https://api.apipass.dev/user/profile"; 
                 customHeaders["Authorization"] = `Token ${currentKey}`;
@@ -209,45 +210,49 @@
 
             try {
                 const res = await fetch(PROXY_URL, { method: "GET", headers: customHeaders });
+                const status = res.status;
+                const resText = await res.text();
                 
                 if (!res.ok) {
-                    const errText = await res.text();
-                    throw new Error(`Proxy Block [${res.status}]: ${errText}`);
+                    throw new Error(`HTTP-${status}`);
                 }
                 
-                const resData = await res.json();
+                const resData = JSON.parse(resText);
                 
+                // Pemetaan struktur JSON baru dari semua provider
                 const credits = resData.credits 
                     ?? resData.data?.credits 
                     ?? resData.data?.left_quota 
                     ?? resData.balance 
                     ?? resData.data?.balance 
                     ?? resData.user_info?.credits 
+                    ?? resData.data?.user_info?.credits
                     ?? null;
 
                 if (credits === null) {
-                    display.innerText = "Format Berubah";
+                    display.innerText = "Format ? / Sesuai";
                     display.className = "text-amber-400 font-bold text-[10px]";
+                    console.log("Struktur Objek Kredit:", resData);
                 } else {
                     display.innerText = `${credits} Kredit`;
                     display.className = "text-emerald-400 font-bold text-[10px]";
                 }
             } catch (e) {
-                display.innerText = "Eror API";
+                // Menampilkan kode status HTTP asli jika diblokir oleh server tujuan
+                display.innerText = `${e.message}`;
                 display.className = "text-red-400 font-bold text-[10px]";
-                console.error("Gagal Ambil Kredit:", e.message);
             }
         }
 
         // ==========================================
-        // GENERATE MUSIC (DENGAN INPUT MODEL & INJEKSI CALLBACK URL)
+        // GENERATE MUSIC
         // ==========================================
         async function generateSong() {
             const title = document.getElementById('title-input').value.trim() || "AI Masterpiece";
             const lyrics = document.getElementById('lyrics-input').value.trim();
             const style = document.getElementById('style-input').value.trim() || "Instrumental";
             const provider = document.getElementById('provider-select').value;
-            const model = document.getElementById('model-select').value; // Mengambil data dropdown model baru
+            const model = document.getElementById('model-select').value; 
             
             const keys = JSON.parse(localStorage.getItem('studio_api_keys') || '{}');
             const currentKey = keys[provider];
@@ -264,57 +269,29 @@
             loader.classList.remove('hidden'); loader.classList.add('flex');
             loadText.innerText = "Mengontak Server AI..."; loadBar.style.width = "15%";
 
-            // Membuat Dummy Callback URL otomatis agar server tidak menolak permohonan kita
             const dummyCallback = "https://webhook.site/cb63337a-42a2-4a00-ba57-78da4b65fb73";
 
             let endpoint = "";
             let customHeaders = { "x-target-url": "" };
             let body = {};
 
+            customHeaders["Authorization"] = `Bearer ${currentKey}`;
+            customHeaders["x-api-key"] = currentKey;
+            customHeaders["token"] = currentKey;
+
             if (provider === 'apiframe') {
                 endpoint = "https://api.apiframe.com/v1/suno/generate";
-                customHeaders["Authorization"] = `Bearer ${currentKey}`;
-                body = { 
-                    prompt: lyrics, 
-                    tags: style,
-                    model: model,
-                    callback_url: dummyCallback
-                };
+                body = { prompt: lyrics, tags: style, model: model, callback_url: dummyCallback };
             } else if (provider === 'sunoapi') {
                 endpoint = "https://api.sunoapi.org/api/v1/generate";
-                customHeaders["Authorization"] = `Bearer ${currentKey}`;
-                body = { 
-                    prompt: lyrics, 
-                    style: style, 
-                    title: title, 
-                    customMode: true, 
-                    instrumental: false,
-                    model: model,
-                    callBack: dummyCallback,
-                    callbackUrl: dummyCallback
-                };
+                body = { prompt: lyrics, style: style, title: title, customMode: true, instrumental: false, model: model, callBack: dummyCallback, callbackUrl: dummyCallback };
             } else if (provider === 'apipass') {
                 endpoint = "https://api.apipass.dev/suno/create";
                 customHeaders["Authorization"] = `Token ${currentKey}`;
-                body = { 
-                    prompt: lyrics, 
-                    style: style,
-                    model: model,
-                    callback: dummyCallback
-                };
+                body = { prompt: lyrics, style: style, model: model, callback: dummyCallback };
             } else if (provider === 'kieai') {
                 endpoint = "https://api.kie.ai/api/v1/generate";
-                customHeaders["Authorization"] = `Bearer ${currentKey}`;
-                body = { 
-                    prompt: lyrics, 
-                    style: style, 
-                    title: title, 
-                    customMode: true, 
-                    instrumental: false,
-                    model: model,
-                    callBack: dummyCallback,
-                    callbackUrl: dummyCallback
-                };
+                body = { prompt: lyrics, style: style, title: title, customMode: true, instrumental: false, model: model, callBack: dummyCallback, callbackUrl: dummyCallback };
             }
             
             customHeaders["x-target-url"] = endpoint;
@@ -356,7 +333,7 @@
         }
 
         // ==========================================
-        // POLLING STATUS KREASI (DENGAN PERBAIKAN URL)
+        // FIX TOTAL: POLLING STATUS WAJIB TUNGGU SELESAI
         // ==========================================
         function startPolling(taskId, provider, key, title, lyrics) {
             const loadText = document.getElementById('loading-text');
@@ -366,31 +343,37 @@
             let pollUrl = "";
             let customHeaders = { "x-target-url": "" };
 
+            customHeaders["Authorization"] = `Bearer ${key}`;
+            customHeaders["x-api-key"] = key;
+
             if (provider === 'apiframe') {
                 pollUrl = `https://api.apiframe.com/v1/suno/status/${taskId}`;
-                customHeaders["Authorization"] = `Bearer ${key}`;
             } else if (provider === 'sunoapi') {
                 pollUrl = `https://api.sunoapi.org/api/v1/generate/record-info?taskId=${taskId}`;
-                customHeaders["Authorization"] = `Bearer ${key}`;
             } else if (provider === 'apipass') {
                 pollUrl = `https://api.apipass.dev/suno/status/${taskId}`;
                 customHeaders["Authorization"] = `Token ${key}`;
             } else if (provider === 'kieai') {
                 pollUrl = `https://api.kie.ai/api/v1/generate/record-info?taskId=${taskId}`;
-                customHeaders["Authorization"] = `Bearer ${key}`;
             }
 
             customHeaders["x-target-url"] = pollUrl;
 
             const checkInterval = setInterval(async () => {
                 counter++;
-                let progress = 35 + (counter * 3);
-                if(progress > 95) progress = 95;
+                let progress = 35 + (counter * 2);
+                if(progress > 96) progress = 96;
                 
                 loadBar.style.width = `${progress}%`;
-                loadText.innerText = `Sedang Meracik Musik... (${counter * 4}s)`;
+                loadText.innerText = `Menunggu AI Bernyanyi... (${counter * 4}s)`;
 
-                if (counter > 60) { clearInterval(checkInterval); alert("Waktu tunggu habis."); resetUI(); return; }
+                // Batas maksimal tunggu dinaikkan ke 4 menit agar lagu panjang selesai diproses sempurna
+                if (counter > 75) { 
+                    clearInterval(checkInterval); 
+                    alert("Waktu pembuatan lagu terlalu lama, silakan cek berkala."); 
+                    resetUI(); 
+                    return; 
+                }
 
                 try {
                     const res = await fetch(PROXY_URL, { method: "GET", headers: customHeaders });
@@ -398,13 +381,25 @@
 
                     const statusData = await res.json();
                     
-                    const state = statusData.status ?? statusData.data?.status ?? (statusData.data && statusData.data[0] && statusData.data[0].status);
-                    const finalAudio = statusData.data?.audioUrl ?? statusData.data?.audio_url ?? statusData.audio_url ?? statusData.output?.audio ?? (statusData.data && statusData.data[0] && statusData.data[0].audio_url);
+                    // Deteksi status dari objek tunggal maupun array bawaan Suno
+                    const state = statusData.status 
+                        ?? statusData.data?.status 
+                        ?? (statusData.data && statusData.data[0] && statusData.data[0].status);
+                        
+                    const finalAudio = statusData.data?.audioUrl 
+                        ?? statusData.data?.audio_url 
+                        ?? statusData.audio_url 
+                        ?? statusData.output?.audio 
+                        ?? (statusData.data && statusData.data[0] && statusData.data[0].audio_url);
 
-                    if (state === 'completed' || state === 'SUCCESS' || state === 'success' || (finalAudio && finalAudio.length > 5)) {
+                    // --- DI SINI KUNCI PERBAIKANNYA ---
+                    // Sistem HANYA boleh selesai jika status eksplisit menyatakan SUKSES / SELESAI
+                    const isSystemReady = ['completed', 'SUCCESS', 'success', 'FINISH', 'finished'].includes(state);
+
+                    if (isSystemReady && finalAudio && finalAudio.length > 5) {
                         clearInterval(checkInterval);
                         loadBar.style.width = "100%";
-                        loadText.innerText = "Lagu Selesai! 🚀";
+                        loadText.innerText = "Lagu Matang Sempurna! 🚀";
                         
                         saveToHistory({
                             title: title, lyrics: lyrics, provider: provider.toUpperCase(),
@@ -414,11 +409,11 @@
                         setTimeout(() => { resetUI(); }, 1500);
                     } else if (state === 'failed' || state === 'FAILED') {
                         clearInterval(checkInterval); 
-                        const serverReason = statusData.msg ?? statusData.message ?? "Alasan tidak diketahui";
-                        alert(`Gagal di Server AI: ${serverReason}`); 
+                        const serverReason = statusData.msg ?? statusData.message ?? "Gagal di backend AI";
+                        alert(`Gagal Total: ${serverReason}`); 
                         resetUI();
                     }
-                } catch (e) { console.error(e); }
+                } catch (e) { console.error("Error saat polling:", e); }
             }, 4000);
         }
 
